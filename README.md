@@ -9,6 +9,9 @@ Then find something else to talk about ;)
 Note: This will install and configure 'Masscan' if it isn't already in your current directory. If this
 	fails to 'make' the first time, just try it again. This a bug I am trying to work out.
 
+LINUX ONLY at the moment. Haven't tested on OSX. Will not work on Windows (sorry ;P)
+
+
 Parameters:
 
 	-h, --help	Help
